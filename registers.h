@@ -29,10 +29,12 @@
  * In general, the internal ADDR register is written first to specify the control/status
  * register for following read/write operations.
  *
+ *   ID register: read-only register containing an expected value for the master to verify, perhaps equal to the I2C address of the device.
+ *
  *   ADDR register: specifies the address of the target register for subsequent read and write operations.
  *     It is a single byte value. It defaults to 0x00 at power on.
  *
- *   CONTROL register (0x00): provides I2C master control of SSR and buzzer states:
+ *   CONTROL register: provides I2C master control of SSR and buzzer states:
  *     bit 7: reserved
  *     bit 6: reserved
  *     bit 5: reserved
@@ -42,7 +44,7 @@
  *     bit 1: set SSR2 state in AUTO mode (1 = on, 0 = off)
  *     bit 0: set SSR1 state in AUTO mode (1 = on, 0 = off)
  *
- *   STATUS register (0x01): provides I2C master monitoring of switch and SSR states
+ *   STATUS register: provides I2C master monitoring of switch and SSR states
  *     bit 7: read sw4 (PP Man) state (1 = on, 0 = off) on PA3
  *     bit 6: read sw3 (PP Mode) state (1 = manual, 0 = auto) on PA2
  *     bit 5: read sw2 (CP Man) state (1 = on, 0 = off) on PA1
@@ -51,14 +53,34 @@
  *     bit 2: reserved
  *     bit 1: read actual SSR2 state (1 = on, 0 = off)
  *     bit 0: read actual SSR1 state (1 = on, 0 = off)
+ *
+ *   SCRATCH register: non-functional read/write register for master use.
+ *
+ *   COUNT_CP,_PP registers: clear-on-read counts of SSR state changes.
+ *
+ *   COUNT_CP_MODE,_CP_MAN,_PP_MODE,_PP_MAN registers: clear-on-read counts of switch state changes.
+ *
+ *   COUNT_BUZZER register: clear-on-read count of buzzer state changes.
  */
 
 #ifndef REGISTERS_H
 #define REGISTERS_H
 
-#define REGISTER_CONTROL 0x00
-#define REGISTER_STATUS  0x01
-#define NUM_REGISTERS    2
+typedef enum
+{
+    REGISTER_ID = 0x00,            // read only
+    REGISTER_CONTROL,              // read/write
+    REGISTER_STATUS,               // read only
+    REGISTER_SCRATCH,              // read/write
+    REGISTER_COUNT_CP,             // clear on read
+    REGISTER_COUNT_PP,             // clear on read
+    REGISTER_COUNT_CP_MODE,        // clear on read
+    REGISTER_COUNT_CP_MAN,         // clear on read
+    REGISTER_COUNT_PP_MODE,        // clear on read
+    REGISTER_COUNT_PP_MAN,         // clear on read
+    REGISTER_COUNT_BUZZER,         // clear on read
+    NUM_REGISTERS
+} registers_t;
 
 // Control Register
 #define REGISTER_CONTROL_SSR1   (1 << 0)
@@ -69,13 +91,16 @@
 #define REGISTER_CONTROL_OFF    0
 
 // Status Register
-#define REGISTER_STATUS_SSR1    (1 << 0)
-#define REGISTER_STATUS_SSR2    (1 << 1)
+#define REGISTER_STATUS_SSR1    (1 << 0)    // Circulation Pump
+#define REGISTER_STATUS_SSR2    (1 << 1)    // Purge Pump
 #define REGISTER_STATUS_SW1     (1 << 4)    // CP Mode
 #define REGISTER_STATUS_SW2     (1 << 5)    // CP Man
 #define REGISTER_STATUS_SW3     (1 << 6)    // PP Mode
 #define REGISTER_STATUS_SW4     (1 << 7)    // PP Man
 
+// Aliases
+#define REGISTER_STATUS_CP      REGISTER_STATUS_SSR1
+#define REGISTER_STATUS_PP      REGISTER_STATUS_SSR2
 #define REGISTER_STATUS_CP_MODE REGISTER_STATUS_SW1
 #define REGISTER_STATUS_CP_MAN  REGISTER_STATUS_SW2
 #define REGISTER_STATUS_PP_MODE REGISTER_STATUS_SW3

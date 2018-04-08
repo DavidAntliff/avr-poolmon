@@ -88,8 +88,11 @@
 
 #define I2C_ADDRESS 0x44
 
+// Number of idle cycles between processing switches/outputs
+#define PERIOD_CYCLES 4000
+
 static uint8_t register_addr = 255;
-static uint8_t registers[NUM_REGISTERS] = { 0x00, 0x00 };
+static uint8_t registers[NUM_REGISTERS] = { 0 };
 
 // SSR "actual" states
 static uint8_t ssr1 = 0;
@@ -157,6 +160,18 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
             {
                 *output_buffer_length = 1;
                 output_buffer[0] = registers[register_addr];
+
+                // clear on read registers
+                if (register_addr == REGISTER_COUNT_CP ||
+                    register_addr == REGISTER_COUNT_PP ||
+                    register_addr == REGISTER_COUNT_BUZZER ||
+                    register_addr == REGISTER_COUNT_CP_MODE ||
+                    register_addr == REGISTER_COUNT_CP_MAN ||
+                    register_addr == REGISTER_COUNT_PP_MODE ||
+                    register_addr == REGISTER_COUNT_PP_MAN)
+                {
+                    registers[register_addr] = 0;
+                }
             }
             break;
 
@@ -166,7 +181,8 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
             if (register_addr < NUM_REGISTERS)
             {
                 // only write to writable registers:
-                if (register_addr == REGISTER_CONTROL)
+                if (register_addr == REGISTER_CONTROL ||
+                    register_addr == REGISTER_SCRATCH)
                 {
                     registers[register_addr] = input_buffer[1];
                 }
@@ -185,11 +201,31 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
 
 static void read_switches(void)
 {
+    // no need to debounce due to long polling period
+
     // read switch states from first 4 bits of PINA
-    uint8_t switches = PINA & 0x0f;
-    registers[REGISTER_STATUS] = switches << 4;
+    uint8_t switches = (PINA & 0x0f) << 4;
+
+    // count changes
+    if ((registers[REGISTER_STATUS] ^ switches) & REGISTER_STATUS_CP_MODE)
+    {
+        ++registers[REGISTER_COUNT_CP_MODE];  // may overflow - no check performed
+    }
+    if ((registers[REGISTER_STATUS] ^ ~switches) & REGISTER_STATUS_CP_MAN)
+    {
+        ++registers[REGISTER_COUNT_CP_MAN];  // may overflow - no check performed
+    }
+    if ((registers[REGISTER_STATUS] ^ switches) & REGISTER_STATUS_PP_MODE)
+    {
+        ++registers[REGISTER_COUNT_PP_MODE];  // may overflow - no check performed
+    }
+    if ((registers[REGISTER_STATUS] ^ ~switches) & REGISTER_STATUS_PP_MAN)
+    {
+        ++registers[REGISTER_COUNT_PP_MAN];  // may overflow - no check performed
+    }
 
     // manual switches are inverted
+    registers[REGISTER_STATUS] = switches;
     registers[REGISTER_STATUS] ^= REGISTER_STATUS_CP_MAN;
     registers[REGISTER_STATUS] ^= REGISTER_STATUS_PP_MAN;
 }
@@ -209,9 +245,28 @@ static void calculate_ssr_state(uint8_t * ssr, uint8_t mode, uint8_t control, ui
     }
 }
 
-static void update_ssr_output(uint8_t * ssr, const io_t * io)
+static void update_ssr_count(uint8_t ssr, const io_t * io, registers_t count_register)
 {
-    if (*ssr)
+    uint8_t current = *(io->port) & (1 << io->pin);
+    if (ssr == current)  // inverted
+    {
+        ++registers[count_register];
+    }
+}
+
+static void update_buzzer_count(const io_t * io)
+{
+    uint8_t current = *(io->port) & (1 << io->pin) ? 1 : 0;
+    uint8_t new = registers[REGISTER_CONTROL] & REGISTER_CONTROL_BUZZER ? 1 : 0;
+    if (current != new)
+    {
+        ++registers[REGISTER_COUNT_BUZZER];
+    }
+}
+
+static void update_ssr_output(uint8_t ssr, const io_t * io)
+{
+    if (ssr)
     {
         // drive low to turn SSR on
         *(io->port) &= ~(1 << io->pin);
@@ -235,9 +290,9 @@ static void update_buzzer_output(const io_t * io)
     }
 }
 
-static void update_status_register(uint8_t * ssr, uint8_t status)
+static void update_status_register(uint8_t ssr, uint8_t status)
 {
-    if (*ssr)
+    if (ssr)
     {
         registers[REGISTER_STATUS] |= status;
     }
@@ -250,24 +305,27 @@ static void update_status_register(uint8_t * ssr, uint8_t status)
 static void idle_callback(void)
 {
     static uint32_t count = 0;
-    if (++count >= 2000)
+    if (++count >= PERIOD_CYCLES)
     {
         *(debug_led_io.port) ^= (1 << debug_led_io.pin);
         count = 0;
+
+        read_switches();
+
+        calculate_ssr_state(&ssr1, REGISTER_STATUS_CP_MODE, REGISTER_CONTROL_SSR1, REGISTER_STATUS_CP_MAN);
+        calculate_ssr_state(&ssr2, REGISTER_STATUS_PP_MODE, REGISTER_CONTROL_SSR2, REGISTER_STATUS_PP_MAN);
+
+        update_ssr_count(ssr1, &ssr1_io, REGISTER_COUNT_CP);
+        update_ssr_count(ssr2, &ssr2_io, REGISTER_COUNT_PP);
+        update_buzzer_count(&buzzer_io);
+
+        update_ssr_output(ssr1, &ssr1_io);
+        update_ssr_output(ssr2, &ssr2_io);
+        update_buzzer_output(&buzzer_io);
+
+        update_status_register(ssr1, REGISTER_STATUS_CP);
+        update_status_register(ssr2, REGISTER_STATUS_SSR2);
     }
-
-    // TODO: debounce switches
-    read_switches();
-
-    calculate_ssr_state(&ssr1, REGISTER_STATUS_CP_MODE, REGISTER_CONTROL_SSR1, REGISTER_STATUS_CP_MAN);
-    calculate_ssr_state(&ssr2, REGISTER_STATUS_PP_MODE, REGISTER_CONTROL_SSR2, REGISTER_STATUS_PP_MAN);
-
-    update_ssr_output(&ssr1, &ssr1_io);
-    update_ssr_output(&ssr2, &ssr2_io);
-    update_buzzer_output(&buzzer_io);
-
-    update_status_register(&ssr1, REGISTER_STATUS_SSR1);
-    update_status_register(&ssr2, REGISTER_STATUS_SSR2);
 }
 
 static volatile uint8_t * get_ddr(volatile uint8_t * port)
@@ -325,6 +383,9 @@ int main(void)
     init_as_output(&ssr2_io, 1);
     init_as_output(&buzzer_io, 0);
     init_as_output(&debug_led_io, 1);
+
+    // set the ID register to the I2C address
+    registers[REGISTER_ID] = I2C_ADDRESS;
 
     // start the slave loop
     usi_twi_slave(I2C_ADDRESS, false /*use_sleep*/, data_callback, idle_callback);
