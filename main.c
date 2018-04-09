@@ -386,6 +386,7 @@ int main(void)
 
     // set the ID register to the I2C address
     registers[REGISTER_ID] = I2C_ADDRESS;
+    registers[REGISTER_VERSION] = VERSION;
 
     // start the slave loop
     usi_twi_slave(I2C_ADDRESS, false /*use_sleep*/, data_callback, idle_callback);

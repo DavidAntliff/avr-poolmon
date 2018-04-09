@@ -26,13 +26,18 @@
  * I2C Registers
  * =============
  *
+ * VERSION 1:
+ *
  * In general, the internal ADDR register is written first to specify the control/status
  * register for following read/write operations.
  *
- *   ID register: read-only register containing an expected value for the master to verify, perhaps equal to the I2C address of the device.
+ *   ID register: read-only register containing an expected value for the master to verify,
+ *                perhaps equal to the I2C address of the device.
+ *
+ *   VERSION register: read-only register containing the version of this software, as an unsigned 8-bit integer.
  *
  *   ADDR register: specifies the address of the target register for subsequent read and write operations.
- *     It is a single byte value. It defaults to 0x00 at power on.
+ *                  It is a single byte value. It defaults to 0x00 at power on.
  *
  *   CONTROL register: provides I2C master control of SSR and buzzer states:
  *     bit 7: reserved
@@ -66,9 +71,12 @@
 #ifndef REGISTERS_H
 #define REGISTERS_H
 
+#define VERSION 1
+
 typedef enum
 {
     REGISTER_ID = 0x00,            // read only
+    REGISTER_VERSION,              // read only
     REGISTER_CONTROL,              // read/write
     REGISTER_STATUS,               // read only
     REGISTER_SCRATCH,              // read/write
