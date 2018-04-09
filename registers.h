@@ -68,55 +68,55 @@
  *   COUNT_BUZZER register: clear-on-read count of buzzer state changes.
  */
 
-#ifndef REGISTERS_H
-#define REGISTERS_H
+#ifndef AVR_REGISTERS_H
+#define AVR_REGISTERS_H
 
 #define VERSION 1
 
 typedef enum
 {
-    REGISTER_ID = 0x00,            // read only
-    REGISTER_VERSION,              // read only
-    REGISTER_CONTROL,              // read/write
-    REGISTER_STATUS,               // read only
-    REGISTER_SCRATCH,              // read/write
-    REGISTER_COUNT_CP,             // clear on read
-    REGISTER_COUNT_PP,             // clear on read
-    REGISTER_COUNT_CP_MODE,        // clear on read
-    REGISTER_COUNT_CP_MAN,         // clear on read
-    REGISTER_COUNT_PP_MODE,        // clear on read
-    REGISTER_COUNT_PP_MAN,         // clear on read
-    REGISTER_COUNT_BUZZER,         // clear on read
-    NUM_REGISTERS
-} registers_t;
+    AVR_REGISTER_ID = 0x00,            // read only
+    AVR_REGISTER_VERSION,              // read only
+    AVR_REGISTER_CONTROL,              // read/write
+    AVR_REGISTER_STATUS,               // read only
+    AVR_REGISTER_SCRATCH,              // read/write
+    AVR_REGISTER_COUNT_CP,             // clear on read
+    AVR_REGISTER_COUNT_PP,             // clear on read
+    AVR_REGISTER_COUNT_CP_MODE,        // clear on read
+    AVR_REGISTER_COUNT_CP_MAN,         // clear on read
+    AVR_REGISTER_COUNT_PP_MODE,        // clear on read
+    AVR_REGISTER_COUNT_PP_MAN,         // clear on read
+    AVR_REGISTER_COUNT_BUZZER,         // clear on read
+    AVR_NUM_REGISTERS
+} avr_registers_t;
 
 // Control Register
-#define REGISTER_CONTROL_SSR1   (1 << 0)
-#define REGISTER_CONTROL_SSR2   (1 << 1)
-#define REGISTER_CONTROL_BUZZER (1 << 4)
+#define AVR_REGISTER_CONTROL_SSR1   (1 << 0)
+#define AVR_REGISTER_CONTROL_SSR2   (1 << 1)
+#define AVR_REGISTER_CONTROL_BUZZER (1 << 4)
 
-#define REGISTER_CONTROL_ON     1
-#define REGISTER_CONTROL_OFF    0
+#define AVR_REGISTER_CONTROL_ON     1
+#define AVR_REGISTER_CONTROL_OFF    0
 
 // Status Register
-#define REGISTER_STATUS_SSR1    (1 << 0)    // Circulation Pump
-#define REGISTER_STATUS_SSR2    (1 << 1)    // Purge Pump
-#define REGISTER_STATUS_SW1     (1 << 4)    // CP Mode
-#define REGISTER_STATUS_SW2     (1 << 5)    // CP Man
-#define REGISTER_STATUS_SW3     (1 << 6)    // PP Mode
-#define REGISTER_STATUS_SW4     (1 << 7)    // PP Man
+#define AVR_REGISTER_STATUS_SSR1    (1 << 0)    // Circulation Pump
+#define AVR_REGISTER_STATUS_SSR2    (1 << 1)    // Purge Pump
+#define AVR_REGISTER_STATUS_SW1     (1 << 4)    // CP Mode
+#define AVR_REGISTER_STATUS_SW2     (1 << 5)    // CP Man
+#define AVR_REGISTER_STATUS_SW3     (1 << 6)    // PP Mode
+#define AVR_REGISTER_STATUS_SW4     (1 << 7)    // PP Man
 
 // Aliases
-#define REGISTER_STATUS_CP      REGISTER_STATUS_SSR1
-#define REGISTER_STATUS_PP      REGISTER_STATUS_SSR2
-#define REGISTER_STATUS_CP_MODE REGISTER_STATUS_SW1
-#define REGISTER_STATUS_CP_MAN  REGISTER_STATUS_SW2
-#define REGISTER_STATUS_PP_MODE REGISTER_STATUS_SW3
-#define REGISTER_STATUS_PP_MAN  REGISTER_STATUS_SW4
+#define AVR_REGISTER_STATUS_CP      AVR_REGISTER_STATUS_SSR1
+#define AVR_REGISTER_STATUS_PP      AVR_REGISTER_STATUS_SSR2
+#define AVR_REGISTER_STATUS_CP_MODE AVR_REGISTER_STATUS_SW1
+#define AVR_REGISTER_STATUS_CP_MAN  AVR_REGISTER_STATUS_SW2
+#define AVR_REGISTER_STATUS_PP_MODE AVR_REGISTER_STATUS_SW3
+#define AVR_REGISTER_STATUS_PP_MAN  AVR_REGISTER_STATUS_SW4
 
-#define REGISTER_STATUS_MODE_AUTO   0
-#define REGISTER_STATUS_MODE_MANUAL 1
-#define REGISTER_STATUS_ON          1
-#define REGISTER_STATUS_OFF         0
+#define AVR_REGISTER_STATUS_MODE_AUTO   0
+#define AVR_REGISTER_STATUS_MODE_MANUAL 1
+#define AVR_REGISTER_STATUS_ON          1
+#define AVR_REGISTER_STATUS_OFF         0
 
-#endif // REGISTERS_H
+#endif // AVR_REGISTERS_H

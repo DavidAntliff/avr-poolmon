@@ -92,7 +92,7 @@
 #define PERIOD_CYCLES 4000
 
 static uint8_t register_addr = 255;
-static uint8_t registers[NUM_REGISTERS] = { 0 };
+static uint8_t registers[AVR_NUM_REGISTERS] = { 0 };
 
 // SSR "actual" states
 static uint8_t ssr1 = 0;
@@ -146,7 +146,7 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
     {
         case 0:  // read currently addressed register
             //blink_led(&debug_led_io, 1);
-            if (register_addr < NUM_REGISTERS)
+            if (register_addr < AVR_NUM_REGISTERS)
             {
                 *output_buffer_length = 1;
                 output_buffer[0] = registers[register_addr];
@@ -156,19 +156,19 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
         case 1:  // write before read - set ADDR register only
             //blink_led(&debug_led_io, 2);
             register_addr = input_buffer[0];
-            if (register_addr < NUM_REGISTERS)
+            if (register_addr < AVR_NUM_REGISTERS)
             {
                 *output_buffer_length = 1;
                 output_buffer[0] = registers[register_addr];
 
                 // clear on read registers
-                if (register_addr == REGISTER_COUNT_CP ||
-                    register_addr == REGISTER_COUNT_PP ||
-                    register_addr == REGISTER_COUNT_BUZZER ||
-                    register_addr == REGISTER_COUNT_CP_MODE ||
-                    register_addr == REGISTER_COUNT_CP_MAN ||
-                    register_addr == REGISTER_COUNT_PP_MODE ||
-                    register_addr == REGISTER_COUNT_PP_MAN)
+                if (register_addr == AVR_REGISTER_COUNT_CP ||
+                    register_addr == AVR_REGISTER_COUNT_PP ||
+                    register_addr == AVR_REGISTER_COUNT_BUZZER ||
+                    register_addr == AVR_REGISTER_COUNT_CP_MODE ||
+                    register_addr == AVR_REGISTER_COUNT_CP_MAN ||
+                    register_addr == AVR_REGISTER_COUNT_PP_MODE ||
+                    register_addr == AVR_REGISTER_COUNT_PP_MAN)
                 {
                     registers[register_addr] = 0;
                 }
@@ -178,11 +178,11 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
         case 2:  // write - set command register and addressed register
             //blink_led(&debug_led_io, 3);
             register_addr = input_buffer[0];
-            if (register_addr < NUM_REGISTERS)
+            if (register_addr < AVR_NUM_REGISTERS)
             {
                 // only write to writable registers:
-                if (register_addr == REGISTER_CONTROL ||
-                    register_addr == REGISTER_SCRATCH)
+                if (register_addr == AVR_REGISTER_CONTROL ||
+                    register_addr == AVR_REGISTER_SCRATCH)
                 {
                     registers[register_addr] = input_buffer[1];
                 }
@@ -207,41 +207,41 @@ static void read_switches(void)
     uint8_t switches = (PINA & 0x0f) << 4;
 
     // count changes
-    if ((registers[REGISTER_STATUS] ^ switches) & REGISTER_STATUS_CP_MODE)
+    if ((registers[AVR_REGISTER_STATUS] ^ switches) & AVR_REGISTER_STATUS_CP_MODE)
     {
-        ++registers[REGISTER_COUNT_CP_MODE];  // may overflow - no check performed
+        ++registers[AVR_REGISTER_COUNT_CP_MODE];  // may overflow - no check performed
     }
-    if ((registers[REGISTER_STATUS] ^ ~switches) & REGISTER_STATUS_CP_MAN)
+    if ((registers[AVR_REGISTER_STATUS] ^ ~switches) & AVR_REGISTER_STATUS_CP_MAN)
     {
-        ++registers[REGISTER_COUNT_CP_MAN];  // may overflow - no check performed
+        ++registers[AVR_REGISTER_COUNT_CP_MAN];  // may overflow - no check performed
     }
-    if ((registers[REGISTER_STATUS] ^ switches) & REGISTER_STATUS_PP_MODE)
+    if ((registers[AVR_REGISTER_STATUS] ^ switches) & AVR_REGISTER_STATUS_PP_MODE)
     {
-        ++registers[REGISTER_COUNT_PP_MODE];  // may overflow - no check performed
+        ++registers[AVR_REGISTER_COUNT_PP_MODE];  // may overflow - no check performed
     }
-    if ((registers[REGISTER_STATUS] ^ ~switches) & REGISTER_STATUS_PP_MAN)
+    if ((registers[AVR_REGISTER_STATUS] ^ ~switches) & AVR_REGISTER_STATUS_PP_MAN)
     {
-        ++registers[REGISTER_COUNT_PP_MAN];  // may overflow - no check performed
+        ++registers[AVR_REGISTER_COUNT_PP_MAN];  // may overflow - no check performed
     }
 
     // manual switches are inverted
-    registers[REGISTER_STATUS] = switches;
-    registers[REGISTER_STATUS] ^= REGISTER_STATUS_CP_MAN;
-    registers[REGISTER_STATUS] ^= REGISTER_STATUS_PP_MAN;
+    registers[AVR_REGISTER_STATUS] = switches;
+    registers[AVR_REGISTER_STATUS] ^= AVR_REGISTER_STATUS_CP_MAN;
+    registers[AVR_REGISTER_STATUS] ^= AVR_REGISTER_STATUS_PP_MAN;
 }
 
 static void calculate_ssr_state(uint8_t * ssr, uint8_t mode, uint8_t control, uint8_t man)
 {
     // Calculate SSR actual states
-    if ((registers[REGISTER_STATUS] & mode) == REGISTER_STATUS_MODE_AUTO)
+    if ((registers[AVR_REGISTER_STATUS] & mode) == AVR_REGISTER_STATUS_MODE_AUTO)
     {
         // use the requested control value
-        *ssr = (registers[REGISTER_CONTROL] & control) ? 1 : 0;
+        *ssr = (registers[AVR_REGISTER_CONTROL] & control) ? 1 : 0;
     }
     else
     {
         // use the manual switch value
-        *ssr = (registers[REGISTER_STATUS] & man) ? 1 : 0;
+        *ssr = (registers[AVR_REGISTER_STATUS] & man) ? 1 : 0;
     }
 }
 
@@ -257,10 +257,10 @@ static void update_ssr_count(uint8_t ssr, const io_t * io, registers_t count_reg
 static void update_buzzer_count(const io_t * io)
 {
     uint8_t current = *(io->port) & (1 << io->pin) ? 1 : 0;
-    uint8_t new = registers[REGISTER_CONTROL] & REGISTER_CONTROL_BUZZER ? 1 : 0;
+    uint8_t new = registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER ? 1 : 0;
     if (current != new)
     {
-        ++registers[REGISTER_COUNT_BUZZER];
+        ++registers[AVR_REGISTER_COUNT_BUZZER];
     }
 }
 
@@ -280,7 +280,7 @@ static void update_ssr_output(uint8_t ssr, const io_t * io)
 
 static void update_buzzer_output(const io_t * io)
 {
-    if (registers[REGISTER_CONTROL] & REGISTER_CONTROL_BUZZER)
+    if (registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER)
     {
         *(io->port) |= (1 << io->pin);
     }
@@ -294,11 +294,11 @@ static void update_status_register(uint8_t ssr, uint8_t status)
 {
     if (ssr)
     {
-        registers[REGISTER_STATUS] |= status;
+        registers[AVR_REGISTER_STATUS] |= status;
     }
     else
     {
-        registers[REGISTER_STATUS] &= ~status;
+        registers[AVR_REGISTER_STATUS] &= ~status;
     }
 }
 
@@ -312,19 +312,19 @@ static void idle_callback(void)
 
         read_switches();
 
-        calculate_ssr_state(&ssr1, REGISTER_STATUS_CP_MODE, REGISTER_CONTROL_SSR1, REGISTER_STATUS_CP_MAN);
-        calculate_ssr_state(&ssr2, REGISTER_STATUS_PP_MODE, REGISTER_CONTROL_SSR2, REGISTER_STATUS_PP_MAN);
+        calculate_ssr_state(&ssr1, AVR_REGISTER_STATUS_CP_MODE, AVR_REGISTER_CONTROL_SSR1, AVR_REGISTER_STATUS_CP_MAN);
+        calculate_ssr_state(&ssr2, AVR_REGISTER_STATUS_PP_MODE, AVR_REGISTER_CONTROL_SSR2, AVR_REGISTER_STATUS_PP_MAN);
 
-        update_ssr_count(ssr1, &ssr1_io, REGISTER_COUNT_CP);
-        update_ssr_count(ssr2, &ssr2_io, REGISTER_COUNT_PP);
+        update_ssr_count(ssr1, &ssr1_io, AVR_REGISTER_COUNT_CP);
+        update_ssr_count(ssr2, &ssr2_io, AVR_REGISTER_COUNT_PP);
         update_buzzer_count(&buzzer_io);
 
         update_ssr_output(ssr1, &ssr1_io);
         update_ssr_output(ssr2, &ssr2_io);
         update_buzzer_output(&buzzer_io);
 
-        update_status_register(ssr1, REGISTER_STATUS_CP);
-        update_status_register(ssr2, REGISTER_STATUS_SSR2);
+        update_status_register(ssr1, AVR_REGISTER_STATUS_CP);
+        update_status_register(ssr2, AVR_REGISTER_STATUS_SSR2);
     }
 }
 
@@ -385,8 +385,8 @@ int main(void)
     init_as_output(&debug_led_io, 1);
 
     // set the ID register to the I2C address
-    registers[REGISTER_ID] = I2C_ADDRESS;
-    registers[REGISTER_VERSION] = VERSION;
+    registers[AVR_REGISTER_ID] = I2C_ADDRESS;
+    registers[AVR_REGISTER_VERSION] = VERSION;
 
     // start the slave loop
     usi_twi_slave(I2C_ADDRESS, false /*use_sleep*/, data_callback, idle_callback);
