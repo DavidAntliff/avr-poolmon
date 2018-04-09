@@ -245,7 +245,7 @@ static void calculate_ssr_state(uint8_t * ssr, uint8_t mode, uint8_t control, ui
     }
 }
 
-static void update_ssr_count(uint8_t ssr, const io_t * io, registers_t count_register)
+static void update_ssr_count(uint8_t ssr, const io_t * io, avr_register_t count_register)
 {
     uint8_t current = *(io->port) & (1 << io->pin);
     if (ssr == current)  // inverted
@@ -386,7 +386,7 @@ int main(void)
 
     // set the ID register to the I2C address
     registers[AVR_REGISTER_ID] = I2C_ADDRESS;
-    registers[AVR_REGISTER_VERSION] = VERSION;
+    registers[AVR_REGISTER_VERSION] = AVR_VERSION;
 
     // start the slave loop
     usi_twi_slave(I2C_ADDRESS, false /*use_sleep*/, data_callback, idle_callback);

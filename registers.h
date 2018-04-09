@@ -71,7 +71,7 @@
 #ifndef AVR_REGISTERS_H
 #define AVR_REGISTERS_H
 
-#define VERSION 1
+#define AVR_VERSION 1
 
 typedef enum
 {
@@ -88,7 +88,7 @@ typedef enum
     AVR_REGISTER_COUNT_PP_MAN,         // clear on read
     AVR_REGISTER_COUNT_BUZZER,         // clear on read
     AVR_NUM_REGISTERS
-} avr_registers_t;
+} avr_register_t;
 
 // Control Register
 #define AVR_REGISTER_CONTROL_SSR1   (1 << 0)
