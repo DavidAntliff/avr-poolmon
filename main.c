@@ -115,7 +115,7 @@ const io_t ssr1_io = { &PORTB, PB0 };
 const io_t ssr2_io = { &PORTB, PB2 };
 const io_t buzzer_io = { &PORTA, PA7 };
 
-const io_t debug_led_io = { &PORTB, PB1 };
+const io_t led_io = { &PORTA, PA5 };
 
 
 static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buffer,
@@ -194,7 +194,7 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
 
         default:
             // ignore
-            blink_led(&debug_led_io, 4);
+            blink_led(&led_io, 4);
             break;
     }
 }
@@ -307,7 +307,7 @@ static void idle_callback(void)
     static uint32_t count = 0;
     if (++count >= PERIOD_CYCLES)
     {
-        *(debug_led_io.port) ^= (1 << debug_led_io.pin);
+        *(led_io.port) ^= (1 << led_io.pin);
         count = 0;
 
         read_switches();
@@ -382,7 +382,7 @@ int main(void)
     init_as_output(&ssr1_io, 1);
     init_as_output(&ssr2_io, 1);
     init_as_output(&buzzer_io, 0);
-    init_as_output(&debug_led_io, 1);
+    init_as_output(&led_io, 1);
 
     // set the ID register to the I2C address
     registers[AVR_REGISTER_ID] = I2C_ADDRESS;
