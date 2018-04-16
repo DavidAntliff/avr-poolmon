@@ -41,9 +41,9 @@
  *
  *   CONTROL register: provides I2C master control of SSR and buzzer states:
  *     bit 7: reserved
- *     bit 6: reserved
- *     bit 5: reserved
- *     bit 4: set piezoelectric buzzer state (1 = on, 0 = off)
+ *     bit 6: set piezoelectric buzzer mode bit1 (00 = continuous, 01 = slow pulse, 10 = fast pulse, 11 = blip)
+ *     bit 5: set piezoelectric buzzer mode bit0
+ *     bit 4: set piezoelectric buzzer state (00 = off, 01 = on)
  *     bit 3: reserved
  *     bit 2: reserved
  *     bit 1: set SSR2 state in AUTO mode (1 = on, 0 = off)
@@ -91,9 +91,11 @@ typedef enum
 } avr_register_t;
 
 // Control Register
-#define AVR_REGISTER_CONTROL_SSR1   (1 << 0)
-#define AVR_REGISTER_CONTROL_SSR2   (1 << 1)
-#define AVR_REGISTER_CONTROL_BUZZER (1 << 4)
+#define AVR_REGISTER_CONTROL_SSR1          (1 << 0)
+#define AVR_REGISTER_CONTROL_SSR2          (1 << 1)
+#define AVR_REGISTER_CONTROL_BUZZER        (1 << 4)
+#define AVR_REGISTER_CONTROL_BUZZER_MODE_0 (1 << 5)
+#define AVR_REGISTER_CONTROL_BUZZER_MODE_1 (1 << 6)
 
 #define AVR_REGISTER_CONTROL_ON     1
 #define AVR_REGISTER_CONTROL_OFF    0
