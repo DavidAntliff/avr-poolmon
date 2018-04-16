@@ -102,21 +102,31 @@ static uint8_t ssr2 = 0;
 // I/O
 typedef struct
 {
+    volatile uint8_t * ddr;
     volatile uint8_t * port;
+    volatile uint8_t * pin;
+} port_registers_t;
+
+typedef struct
+{
+    const port_registers_t * reg;
     uint8_t pin;
 } io_t;
 
-const io_t sw1_io = { &PORTA, PA0 };
-const io_t sw2_io = { &PORTA, PA1 };
-const io_t sw3_io = { &PORTA, PA2 };
-const io_t sw4_io = { &PORTA, PA3 };
+const port_registers_t PORTA_REGS = { &DDRA, &PORTA, &PINA };
+const port_registers_t PORTB_REGS = { &DDRB, &PORTB, &PINB };
 
-const io_t ssr1_io = { &PORTB, PB0 };
-const io_t ssr2_io = { &PORTB, PB2 };
-const io_t buzzer_io = { &PORTA, PA7 };
+const io_t sw1_io = { &PORTA_REGS, PA0 };
+const io_t sw2_io = { &PORTA_REGS, PA1 };
+const io_t sw3_io = { &PORTA_REGS, PA2 };
+const io_t sw4_io = { &PORTA_REGS, PA3 };
 
-const io_t led_io = { &PORTA, PA5 };
+const io_t led_io = { &PORTA_REGS, PA5 };
 
+const io_t buzzer_io = { &PORTA_REGS, PA7 };
+
+const io_t ssr1_io = { &PORTB_REGS, PB0 };
+const io_t ssr2_io = { &PORTB_REGS, PB2 };
 
 static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buffer,
                           uint8_t *output_buffer_length, uint8_t *output_buffer);
@@ -128,9 +138,9 @@ static void blink_led(const io_t * io, int n)
 {
     for (int i = 0; i < n; ++i)
     {
-        *(io->port) |= 1 << io->pin;
+        *(io->reg->pin) |= (1 << io->pin);
         _delay_ms(100);
-        *(io->port) &= ~(1 << io->pin);
+        *(io->reg->pin) |= (1 << io->pin);
         _delay_ms(100);
     }
 }
@@ -230,24 +240,26 @@ static void read_switches(void)
     registers[AVR_REGISTER_STATUS] ^= AVR_REGISTER_STATUS_PP_MAN;
 }
 
-static void calculate_ssr_state(uint8_t * ssr, uint8_t mode, uint8_t control, uint8_t man)
+static uint8_t calculate_ssr_state(uint8_t mode, uint8_t control, uint8_t man)
 {
+    uint8_t ssr = 0;
     // Calculate SSR actual states
     if ((registers[AVR_REGISTER_STATUS] & mode) == AVR_REGISTER_STATUS_MODE_AUTO)
     {
         // use the requested control value
-        *ssr = (registers[AVR_REGISTER_CONTROL] & control) ? 1 : 0;
+        ssr = (registers[AVR_REGISTER_CONTROL] & control) ? 1 : 0;
     }
     else
     {
         // use the manual switch value
-        *ssr = (registers[AVR_REGISTER_STATUS] & man) ? 1 : 0;
+        ssr = (registers[AVR_REGISTER_STATUS] & man) ? 1 : 0;
     }
+    return ssr;
 }
 
 static void update_ssr_count(uint8_t ssr, const io_t * io, avr_register_t count_register)
 {
-    uint8_t current = *(io->port) & (1 << io->pin);
+    uint8_t current = *(io->reg->pin) & (1 << io->pin) ? 1 : 0;
     if (ssr == current)  // inverted
     {
         ++registers[count_register];
@@ -256,7 +268,7 @@ static void update_ssr_count(uint8_t ssr, const io_t * io, avr_register_t count_
 
 static void update_buzzer_count(const io_t * io)
 {
-    uint8_t current = *(io->port) & (1 << io->pin) ? 1 : 0;
+    uint8_t current = *(io->reg->pin) & (1 << io->pin) ? 1 : 0;
     uint8_t new = registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER ? 1 : 0;
     if (current != new)
     {
@@ -269,12 +281,12 @@ static void update_ssr_output(uint8_t ssr, const io_t * io)
     if (ssr)
     {
         // drive low to turn SSR on
-        *(io->port) &= ~(1 << io->pin);
+        *(io->reg->port) &= ~(1 << io->pin);
     }
     else
     {
         // drive high to turn SSR off
-        *(io->port) |= 1 << io->pin;
+        *(io->reg->port) |= (1 << io->pin);
     }
 }
 
@@ -282,11 +294,11 @@ static void update_buzzer_output(const io_t * io)
 {
     if (registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER)
     {
-        *(io->port) |= (1 << io->pin);
+        *(io->reg->port) |= (1 << io->pin);
     }
     else
     {
-        *(io->port) &= ~(1 << io->pin);
+        *(io->reg->port) &= ~(1 << io->pin);
     }
 }
 
@@ -307,13 +319,14 @@ static void idle_callback(void)
     static uint32_t count = 0;
     if (++count >= PERIOD_CYCLES)
     {
-        *(led_io.port) ^= (1 << led_io.pin);
+        // toggle LED
+        *(led_io.reg->pin) |= (1 << led_io.pin);
         count = 0;
 
         read_switches();
 
-        calculate_ssr_state(&ssr1, AVR_REGISTER_STATUS_CP_MODE, AVR_REGISTER_CONTROL_SSR1, AVR_REGISTER_STATUS_CP_MAN);
-        calculate_ssr_state(&ssr2, AVR_REGISTER_STATUS_PP_MODE, AVR_REGISTER_CONTROL_SSR2, AVR_REGISTER_STATUS_PP_MAN);
+        ssr1 = calculate_ssr_state(AVR_REGISTER_STATUS_CP_MODE, AVR_REGISTER_CONTROL_SSR1, AVR_REGISTER_STATUS_CP_MAN);
+        ssr2 = calculate_ssr_state(AVR_REGISTER_STATUS_PP_MODE, AVR_REGISTER_CONTROL_SSR2, AVR_REGISTER_STATUS_PP_MAN);
 
         update_ssr_count(ssr1, &ssr1_io, AVR_REGISTER_COUNT_CP);
         update_ssr_count(ssr2, &ssr2_io, AVR_REGISTER_COUNT_PP);
@@ -324,49 +337,33 @@ static void idle_callback(void)
         update_buzzer_output(&buzzer_io);
 
         update_status_register(ssr1, AVR_REGISTER_STATUS_CP);
-        update_status_register(ssr2, AVR_REGISTER_STATUS_SSR2);
+        update_status_register(ssr2, AVR_REGISTER_STATUS_PP);
     }
-}
-
-static volatile uint8_t * get_ddr(volatile uint8_t * port)
-{
-    volatile uint8_t * ddr = 0;
-    if (port == &PORTA)
-    {
-         ddr = &DDRA;
-    }
-    else if (port == &PORTB)
-    {
-        ddr = &DDRB;
-    }
-    return ddr;
 }
 
 static void init_as_input(const io_t * io, bool enable_pullup)
 {
-    volatile uint8_t * ddr = get_ddr(io->port);
-    *ddr &= ~(1 << io->pin);
+    *(io->reg->ddr) &= ~(1 << io->pin);
     if (enable_pullup)
     {
-        *(io->port) |= (1 << io->pin);
+        *(io->reg->port) |= (1 << io->pin);
     }
     else
     {
-        *(io->port) &= ~(1 << io->pin);
+        *(io->reg->port) &= ~(1 << io->pin);
     }
 }
 
 static void init_as_output(const io_t * io, bool default_value)
 {
-    volatile uint8_t * ddr = get_ddr(io->port);
-    *ddr |= (1 << io->pin);
+    *(io->reg->ddr) |= (1 << io->pin);
     if (default_value)
     {
-        *(io->port) |= (1 << io->pin);
+        *(io->reg->port) |= (1 << io->pin);
     }
     else
     {
-        *(io->port) &= ~(1 << io->pin);
+        *(io->reg->port) &= ~(1 << io->pin);
     }
 }
 
