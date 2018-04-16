@@ -101,10 +101,10 @@ static uint8_t ssr2 = 0;
 
 typedef struct
 {
-    bool enabled;
-    uint8_t on_count;    // number of interrupt cycles to hold buzzer on for
-    uint8_t reset_count; // number of interrupt cycles at which counter is reset
-    uint8_t counter;
+    volatile bool enabled;
+    volatile uint8_t on_count;    // number of interrupt cycles to hold buzzer on for
+    volatile uint8_t reset_count; // number of interrupt cycles at which counter is reset
+    volatile uint8_t counter;
 } buzzer_state_t;
 
 // I/O
@@ -142,7 +142,7 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
 static void idle_callback(void);
 
 
-static buzzer_state_t buzzer_state = { 0 };
+static volatile buzzer_state_t buzzer_state = { 0 };
 
 ISR(TIM1_COMPA_vect)
 {
@@ -312,7 +312,7 @@ static void update_ssr_output(uint8_t ssr, const io_t * io)
     }
 }
 
-static void update_buzzer_state(buzzer_state_t * state)
+static void update_buzzer_state(volatile buzzer_state_t * state)
 {
     if (registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER)
     {
