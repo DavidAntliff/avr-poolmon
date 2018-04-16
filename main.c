@@ -101,7 +101,9 @@ static uint8_t ssr2 = 0;
 
 typedef struct
 {
-    bool enable;
+    bool enabled;
+    uint8_t on_count;    // number of interrupt cycles to hold buzzer on for
+    uint8_t reset_count; // number of interrupt cycles at which counter is reset
     uint8_t counter;
 } buzzer_state_t;
 
@@ -140,62 +142,29 @@ static void data_callback(uint8_t input_buffer_length, const uint8_t *input_buff
 static void idle_callback(void);
 
 
-static buzzer_state_t state = { 0 };
+static buzzer_state_t buzzer_state = { 0 };
 
 ISR(TIM1_COMPA_vect)
 {
-    bool drive_buzzer = false;
-    if (registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER)
+    if (buzzer_state.enabled)
     {
-        // buzzer is enabled
-        uint8_t mode = ((registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER_MODE_0) ? 0b01 : 0b00) |
-                       ((registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER_MODE_1) ? 0b10 : 0b00);
-        switch (mode)
+        if (buzzer_state.counter == 0)
         {
-            case 0b00:  // continuous
-                drive_buzzer = true;
-                state.counter = 0;
-                break;
-            case 0b01:  // slow pulse
-                drive_buzzer = state.counter < 24;
-                if (state.counter == 32)
-                    state.counter = 0;
-                break;
-            case 0b10:  // fast pulse
-                drive_buzzer = state.counter < 12;
-                if (state.counter == 16)
-                    state.counter = 0;
-                break;
-            case 0b11:  // blip
-                drive_buzzer = state.counter < 2;
-                if (state.counter == 24)
-                    state.counter = 0;
-                break;
-            default:
-                break;
+            *(buzzer_io.reg->port) |= (1 << buzzer_io.pin);  // buzzer on
         }
-        ++state.counter;
-    }
-    else
-    {
-        state.counter = 0;
-        if (state.enable)
+        else if (buzzer_state.counter == buzzer_state.on_count)
         {
-            ++registers[AVR_REGISTER_COUNT_BUZZER];
-            state.enable = false;
+            *(buzzer_io.reg->port) &= ~(1 << buzzer_io.pin);  // buzzer off
         }
-    }
 
-    if (drive_buzzer)
-    {
-        *(buzzer_io.reg->port) |= (1 << buzzer_io.pin);
-    }
-    else
-    {
-        *(buzzer_io.reg->port) &= ~(1 << buzzer_io.pin);
+        ++buzzer_state.counter;
+
+        if (buzzer_state.counter == buzzer_state.reset_count)
+        {
+            buzzer_state.counter = 0;
+        }
     }
 }
-
 
 static void blink_led(const io_t * io, int n)
 {
@@ -343,23 +312,51 @@ static void update_ssr_output(uint8_t ssr, const io_t * io)
     }
 }
 
-static void update_buzzer_count(void)
+static void update_buzzer_state(buzzer_state_t * state)
 {
     if (registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER)
     {
         // buzzer is enabled
-        if (!state.enable)
+        uint8_t mode = ((registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER_MODE_0) ? 0b01 : 0b00) |
+                       ((registers[AVR_REGISTER_CONTROL] & AVR_REGISTER_CONTROL_BUZZER_MODE_1) ? 0b10 : 0b00);
+        switch (mode)
+        {
+            case 0b00:  // continuous
+                state->on_count = 16;
+                state->reset_count = 16;
+                break;
+            case 0b01:  // slow pulse
+                state->on_count = 24;
+                state->reset_count = 32;
+                break;
+            case 0b10:  // fast pulse
+                state->on_count = 12;
+                state->reset_count = 16;
+                break;
+            case 0b11:  // blip
+                state->on_count = 2;
+                state->reset_count = 24;
+                break;
+            default:
+                break;
+        }
+
+        if (!state->enabled)
         {
             ++registers[AVR_REGISTER_COUNT_BUZZER];
-            state.enable = true;
+            state->enabled = true;
         }
     }
     else
     {
-        if (state.enable)
+        if (state->enabled)
         {
             ++registers[AVR_REGISTER_COUNT_BUZZER];
-            state.enable = false;
+            state->enabled = false;
+            state->counter = 0;
+
+            // ensure buzzer is off
+            *(buzzer_io.reg->port) &= ~(1 << buzzer_io.pin);
         }
     }
 }
@@ -389,10 +386,10 @@ static void idle_callback(void)
 
         ssr1 = calculate_ssr_state(AVR_REGISTER_STATUS_CP_MODE, AVR_REGISTER_CONTROL_SSR1, AVR_REGISTER_STATUS_CP_MAN);
         ssr2 = calculate_ssr_state(AVR_REGISTER_STATUS_PP_MODE, AVR_REGISTER_CONTROL_SSR2, AVR_REGISTER_STATUS_PP_MAN);
+        update_buzzer_state(&buzzer_state);
 
         update_ssr_count(ssr1, &ssr1_io, AVR_REGISTER_COUNT_CP);
         update_ssr_count(ssr2, &ssr2_io, AVR_REGISTER_COUNT_PP);
-        update_buzzer_count();
 
         update_ssr_output(ssr1, &ssr1_io);
         update_ssr_output(ssr2, &ssr2_io);
